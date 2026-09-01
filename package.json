@@ -1,0 +1,54 @@
+{
+  "name": "vader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "dev:eve": "eve dev",
+    "build:eve": "eve build",
+    "info": "eve info",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test:pipeline": "tsx scripts/test-pipeline.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.41",
+    "@radix-ui/react-use-controllable-state": "^1.2.6",
+    "@streamdown/cjk": "^1.0.3",
+    "@streamdown/code": "^1.1.1",
+    "@streamdown/math": "^1.0.2",
+    "@streamdown/mermaid": "^1.0.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "ai": "latest",
+    "ai-sdk-ollama": "latest",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "eve": "latest",
+    "lucide-react": "^1.38.0",
+    "motion": "^13.1.1",
+    "nanoid": "^6.0.1",
+    "next": "^16.3.3",
+    "playwright": "^1.48.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "shiki": "^4.4.3",
+    "streamdown": "^2.6.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "use-stick-to-bottom": "^1.1.6",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "19.2.18",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
