@@ -1,0 +1,48 @@
+name: vader
+
+services:
+  vader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vader-disaster-intel
+    container_name: vader
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - OLLAMA_BASE_URL=http://ollama:11434/v1
+      - OLLAMA_MODEL=lfm2.5
+      - BRIEFING_RADIUS_KM=${BRIEFING_RADIUS_KM:-5}
+      - WEB_FETCH_TIMEOUT_MS=${WEB_FETCH_TIMEOUT_MS:-12000}
+    depends_on:
+      - ollama
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: vader-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    # Expose only if you want to reach Ollama from the host.
+    # ports:
+    #   - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  ollama_data:

@@ -1,0 +1,35 @@
+name: Live pipeline test
+
+# Runs the end-to-end intelligence pipeline against live public APIs.
+# Scheduled nightly; can also be triggered manually from the Actions tab.
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    name: Live briefing integration test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:pipeline
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.summary.addHeading('Live pipeline test failed');
+            core.summary.addRaw('One or more external sources (Nominatim, Open-Meteo, DuckDuckGo, ' +
+              'Overpass, IMD/NDMA, Google News) may be down or rate-limiting. ' +
+              'This is not necessarily a code regression — check the workflow log and ' +
+              'the `meta.sourcesFailed` array in the output.');
+            core.summary.write();

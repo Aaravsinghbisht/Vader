@@ -1,0 +1,32 @@
+# ---- build context ----
+.git
+.github
+.gitignore
+.idea
+.vscode
+node_modules
+npm-debug.log*
+.npm
+.next
+.eve
+dist
+.build
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+architecture.md
+
+# local env / secrets
+.env
+.env.*
+!.env.example
+
+# test / tooling
+*.tsbuildinfo
+coverage
+.vscode
+.vercel

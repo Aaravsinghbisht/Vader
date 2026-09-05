@@ -11,7 +11,8 @@
     "build:eve": "eve build",
     "info": "eve info",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:pipeline": "tsx scripts/test-pipeline.ts"
+    "test:pipeline": "tsx scripts/test-pipeline.ts",
+    "ci": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.41",

@@ -9,6 +9,7 @@
 # next.js
 /.next/
 /out/
+/.output/
 
 # production
 /build
@@ -36,3 +37,6 @@ next-env.d.ts
 
 # editor / workflow
 .eve/
+.idea/
+.vscode/
+.vercel/
