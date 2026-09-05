@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: vader-disaster-intel
+    image: vader
     container_name: vader
     restart: unless-stopped
     ports:

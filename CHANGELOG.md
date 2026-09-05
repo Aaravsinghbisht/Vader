@@ -7,7 +7,7 @@ All notable changes to **Vader** are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
-- Public GitHub repository: `vader-disaster-intel`.
+- Public GitHub repository: `vader`.
 - Production infrastructure:
   - Multi-stage `Dockerfile` (standalone Next.js output, non-root user).
   - `docker-compose.yml` bundling the app with an Ollama service.
