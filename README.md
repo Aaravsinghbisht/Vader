@@ -1,52 +1,29 @@
-<div align="center">
-
 # Vader
 
-**Local-first disaster intelligence system for India**
+**Vader** is a local-first **disaster intelligence system** for India. Type any place name — English, Hindi, or mixed — and receive a full operational briefing: live weather, web-sourced ground reports, road conditions, NavIC/geospatial context, government alerts, disaster news, risk assessment, and recommended actions. A deterministic server-side pipeline merges **10+ free public APIs** — no API keys, no cloud, no paid services.
 
-Enter any place name — English, Hindi, or mixed — and get a full operational briefing:
-live weather, web-sourced ground reports, road conditions, NavIC/geospatial context,
-government alerts, disaster news, risk assessment, and recommended actions.
+Sitting on top is a thin **local LLM wrapper** (`lfm2.5` via Ollama) built with [Vercel eve](https://eve.dev) for one-line intros, follow-up questions, and file attachments. It is a conversational layer only, never the "brain" — ~95% of the value is pure server code.
 
-</div>
+| Layer | Role |
+|-------|------|
+| **Vader** | The intelligence system — geocoding, briefing pipeline, risk scoring, report rendering |
+| **Local LLM (`lfm2.5`)** | The thin conversational wrapper — intros, follow-ups, file attachments |
 
-> **Vader is pipeline-first and model-light.** ~95% of its value comes from a deterministic
-> server-side pipeline that merges 10+ free public APIs. A small local LLM (`lfm2.5` via
-> Ollama) is an optional conversational wrapper for follow-up questions only — it is *not*
-> the "brain". See [`architecture.md`](architecture.md) for the full design.
-
----
-
-## Features
-
-- 🌐 **Polyglot input** — type `Indore`, `इंदौर`, `दिल्ली में बाढ़`, or raw coordinates (`19.0760, 72.8777`).
-- ⚡ **Direct briefing pipeline** — typed queries hit `POST /api/briefing` immediately; no slow or unreliable LLM tool-calling in the critical path.
-- 🌦️ **Weather intelligence** — 27+ variables, 7-day forecast, hourly outlook, and coastal marine conditions (Open-Meteo).
-- 🕸️ **Web intelligence** — free DuckDuckGo search across 6 targeted queries, page enrichment, and keyword-categorized road / ground / official reports.
-- 🛣️ **Roads & access** — OSM Overpass infrastructure map (roads, bridges, tunnels, emergency facilities) merged with live reported conditions.
-- 📡 **NavIC / geospatial** — India primary-zone check, ISRO constellation status, Bhuvan reverse geocode, INCOIS coastal alerts, GAGAN/SBAS notes, and map-portal deep links.
-- 🚨 **Government alerts** — IMD / NDMA / INCOIS page scraping + RSS, severity-ranked and deduplicated.
-- 📰 **Disaster news** — Google News RSS with theme detection (flood, cyclone, landslide, rescue, road disruption).
-- 🧮 **Risk scoring** — weather hazard flags + alert severity + web risk signals + news volume → an overall risk level (Low / Moderate / High / Severe).
-- 🧭 **Actionable output** — a 10-section markdown briefing with recommended actions per scenario.
-- 🛡️ **Resilient** — `Promise.allSettled` everywhere; a failed source degrades gracefully instead of failing the briefing.
-- 🤖 **Optional LLM layer** — Eve agent + Ollama (`lfm2.5`) for file attachments and follow-up Q&A.
-
----
-
-## Demo & tests
+## Demo
 
 Real screen recordings of Vader running locally:
 
-| Video | What it shows |
-|-------|---------------|
-| [01-general-test](vids/01-general-test-19-21-14.mp4) | General briefing flow — typed location → 6-step progress → full markdown report (weather, roads, alerts, news, risk) |
-| [02-hindi-test](vids/02-hindi-test-19-35-04.mp4) | Hindi input — e.g. `इंदौर`, `दिल्ली में बाढ़` — routed and geocoded correctly |
-| [03-tamil-test](vids/03-tamil-test-19-38-49.mp4) | Tamil input / mixed-language handling |
+| # | Test | Watch |
+|---|------|-------|
+| 1 | **General briefing** — typed location → 6-step progress → full 10-section report | [▶ `01-general-test-19-21-14.mp4`](vids/01-general-test-19-21-14.mp4) |
+| 2 | **Hindi input** — polyglot place name routed and geocoded correctly | [▶ `02-hindi-test-19-35-04.mp4`](vids/02-hindi-test-19-35-04.mp4) |
+| 3 | **Tamil input** — polyglot place name routed and geocoded correctly | [▶ `03-tamil-test-19-38-49.mp4`](vids/03-tamil-test-19-38-49.mp4) |
 
-## Architecture at a glance
+> Files live under `vids/` — clone the repo to play them locally.
 
-```
+## Architecture
+
+```text
   User browser  ──►  POST /api/briefing  ──►  runBriefing() orchestrator
                                                  │
         ┌──────────────┬───────────────┬─────────┴───────────┬──────────────┐
@@ -59,223 +36,154 @@ Real screen recordings of Vader running locally:
                       buildFullReport()
                     risk scoring + actions
                                ▼
-                    10-section markdown briefing
+                     10-section markdown briefing
 ```
 
-Read the **[full system architecture → `architecture.md`](architecture.md)**.
+| Layer | Kind | Runs as |
+|-------|------|---------|
+| **Next.js UI + `/api/briefing`** | Deterministic | Host process, port 3000 |
+| **`runBriefing()` pipeline** | Deterministic | Server modules under `agent/lib/` |
+| **Eve agent + Ollama** | Optional LLM | `lfm2.5`, port 11434 — follow-ups only |
 
----
+## The briefing pipeline
 
-## Tech stack
+Every typed location follows the same path — **no LLM in the critical path**.
 
-| Layer | Technology |
-|-------|------------|
-| Frontend / API | Next.js 16 (App Router, Turbopack), React 19, TypeScript |
-| UI primitives | Tailwind CSS v4, shadcn/Radix, StreamDown markdown, lucide icons |
-| Intelligence pipeline | TypeScript server modules (`agent/lib/*`) |
-| LLM wrapper (optional) | Eve agent framework + Ollama (`lfm2.5`) |
+1. **Geocode** — `geocodeLocation()` resolves the query via Nominatim into lat/lon, district, and state (with a coastal heuristic).
+2. **Parallel intelligence** — weather, roads, government alerts, disaster news, and web intel are fetched with `Promise.all`; one failing source never blocks the rest.
+3. **NavIC + merge** — geospatial context (ISRO, Bhuvan, INCOIS) is gathered, then web-found official mentions are merged into the alert list.
+4. **Report** — `buildFullReport()` renders a **10-section markdown briefing** with an overall risk level (Low / Moderate / High / Severe) and recommended actions.
+5. **Follow-ups** — only file attachments and follow-up questions reach the LLM; the briefing itself is rendered directly, never repeated by the model.
 
-**Data sources (all free, no API keys):** Nominatim, Open-Meteo, OSM Overpass,
-DuckDuckGo HTML, Google News RSS, IMD, NDMA, INCOIS, ISRO, Bhuvan, NHAI.
+## Prerequisites
 
----
+- **Node.js 24+** and npm
+- **Ollama** with the `lfm2.5` model — optional; briefings work fully without it
+- **Internet access** for the free public APIs (Nominatim, Open-Meteo, OSM Overpass, DuckDuckGo, Google News, IMD, NDMA, INCOIS, ISRO, Bhuvan)
 
 ## Quick start
 
-### Prerequisites
-
-- **Node.js ≥ 24** (see `.nvmrc` / `engines`)
-- **Ollama** with the `lfm2.5` model (optional — browsing + briefing work without it)
-
-### 1. Install
-
 ```bash
 npm install
-```
-
-### 2. Configure
-
-```bash
-cp .env.example .env
-```
-
-Everything has sensible defaults; the env file is only needed to override the
-model name, briefing radius, or fetch timeouts.
-
-### 3. Run
-
-```bash
-# With the Eve agent + LLM wrapper (recommended for local dev)
-./start.sh
-
-# Web-app only (no Ollama required at startup)
+cp .env.example .env      # optional — defaults work out of the box
 npm run dev
 ```
 
-Open **http://localhost:3000/chat** and type any place name, e.g. `Chennai Marina`,
-`Indore`, or `इंदौर`.
+Open **http://localhost:3000/chat** and type any place — `Chennai Marina`, `Indore`, `इंदौर`.
 
----
-
-## How it works
-
-Every text submission follows one path:
-
-1. `extractLocationQuery()` strips wrapper phrases ("situation at Puri Odisha" → `Puri Odisha`).
-2. The UI shows a 6-step `BriefingProgress` loader.
-3. `POST /api/briefing` calls `runBriefing()`, the single orchestrator shared by the REST API and the Eve tool.
-4. `Promise.all` fetches weather, roads, alerts, news, and web intel in parallel.
-5. NavIC / geospatial context is merged with web-found official mentions.
-6. `buildFullReport()` produces a **10-section markdown briefing** with risk score and recommended actions.
-
-LLM follow-ups only happen for file attachments or explicit follow-up questions —
-the briefing is never repeated by the model.
-
-### API
-
-**`POST /api/briefing`**
+To include the follow-up LLM wrapper:
 
 ```bash
-curl -X POST http://localhost:3000/api/briefing \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Puri Odisha", "radiusKm": 5}'
+ollama pull lfm2.5 && ollama serve
+./start.sh                # checks Ollama + model, then starts the dev server
 ```
 
-Response:
+For a Docker deployment: `docker compose up --build -d`.
 
-```json
-{
-  "success": true,
-  "report": "# Disaster Intelligence Briefing\n...",
-  "area": { "name": "Puri, ...", "latitude": 19.8135, "longitude": 85.8312, "district": "Puri", "state": "Odisha", "coastal": true },
-  "stats": { "weatherMetrics": 27, "roadSegments": 347, "newsArticles": 10, "alerts": 8, "hazardFlags": ["rain","wind"], "webResults": 18 },
-  "meta": { "fetchedAt": "2026-09-05T...", "sourcesReachable": ["Nominatim", "open-meteo.com", "..."], "sourcesFailed": [] }
-}
+## Manual setup
+
+```bash
+# 1. Dependencies
+npm install
+
+# 2. Optional — local LLM for follow-ups
+ollama pull lfm2.5
+ollama serve
+
+# 3. Environment
+cp .env.example .env
+# edit OLLAMA_MODEL / BRIEFING_RADIUS_KM / WEB_FETCH_TIMEOUT_MS as needed
+
+# 4. Run
+npm run dev
 ```
 
-**`GET /api/health`** — container / load-balancer health check.
+## Scripts
 
----
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Next.js dev server (Turbopack) + briefing API |
+| `npm run dev:eve` | eve dev server only |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run typecheck` | TypeScript check |
+| `npm run test:pipeline` | Live end-to-end pipeline test (network required) |
+| `npm run ci` | typecheck + build |
 
 ## Configuration
 
-| Env variable | Default | Effect |
-|--------------|---------|--------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Ollama OpenAI-compatible endpoint (Eve consumes it) |
-| `OLLAMA_MODEL` | `lfm2.5` | Local LLM model used by the Eve agent |
-| `BRIEFING_RADIUS_KM` | `5` | OSM road search radius (max 25) |
-| `WEB_FETCH_TIMEOUT_MS` | `12000` | DuckDuckGo + page enrichment timeout |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Ollama OpenAI-compatible endpoint (eve) |
+| `OLLAMA_MODEL` | `lfm2.5` | Local LLM model for follow-ups |
+| `BRIEFING_RADIUS_KM` | `5` | Road/OSM search radius (max 25) |
+| `WEB_FETCH_TIMEOUT_MS` | `12000` | DuckDuckGo + page-enrichment timeout |
 | `PORT` | `3000` | Next.js server port |
 
----
+## Troubleshooting
 
-## Development
+**"Location not found"**
 
-```bash
-npm run dev          # Next.js dev (Turbopack) — web app + briefing API
-npm run dev:eve      # Eve agent dev server
-npm run typecheck    # TypeScript validation
-npm run build        # Production build
-npm run test:pipeline# End-to-end pipeline test against live APIs (Kolar, Chennai)
-```
+Add city + state for disambiguation, e.g. `Kolar Bhopal MP`.
 
-> **Note:** `npm run test:pipeline` hits live public APIs and requires network access.
+**Some sources failed**
 
----
+The briefing's Sources section lists reached vs. failed endpoints. One flaky source (DuckDuckGo, IMD, Overpass) degrades gracefully and never fails the whole report.
 
-## Production deployment
+**LLM follow-ups not responding**
 
-### Docker (recommended)
+Make sure Ollama is running and the model is pulled: `curl http://localhost:11434/api/tags` and `ollama pull lfm2.5`.
 
-```bash
-docker compose up --build -d
-```
+## Project layout
 
-Serves the app on **http://localhost:3000** with a bundled `ollama/ollama` service.
-The full-briefing path runs fully inside the container; the LLM follow-up layer
-uses the bundled Ollama service.
-
-### Standalone image
-
-```bash
-docker build -t vader .
-docker run -p 3000:3000 -e OLLAMA_BASE_URL=http://host.docker.internal:11434/v1 vader
-```
-
-### Vercel / serverless
-
-Deploy `main` directly — the API route and pages are standard Next.js. The app
-degrades gracefully without Ollama (typed briefings still work). To enable
-follow-ups, set an `EVE_NEXT_PRODUCTION_ORIGIN` pointing at a hosted Eve service.
-
-### Manual
-
-```bash
-npm run build
-npm start
-```
-
----
-
-## Project structure
-
-```
+```text
 vader/
-├── agent/                       # Eve agent + intelligence pipeline
-│   ├── agent.ts                 # Model + token limits (Ollama lfm2.5)
-│   ├── instructions.md          # System prompt (thin wrapper role)
-│   ├── tools/
-│   │   └── area_situation_report.ts
-│   └── lib/                     # ★ The intelligence pipeline
-│       ├── run-briefing.ts      # Central orchestrator (API + Eve share it)
-│       ├── full-report.ts       # Report builder + risk scoring
-│       ├── geocode.ts           # Nominatim + coastal heuristic
-│       ├── weather-metrics.ts   # Open-Meteo (+ marine)
-│       ├── weather-narrative.ts
-│       ├── web-intelligence.ts  # DuckDuckGo + page enrichment
-│       ├── web-intelligence-report.ts
-│       ├── roads-overpass.ts    # OSM Overpass
-│       ├── roads-report.ts
-│       ├── gov-alerts.ts        # IMD / NDMA / INCOIS
-│       ├── disaster-news.ts     # Google News RSS
-│       ├── navic-context.ts     # ISRO / Bhuvan / INCOIS
-│       ├── navic-report.ts
-│       └── fetch-utils.ts       # HTTP helpers + HTML strip
-├── app/                         # Next.js App Router
-│   ├── chat/                    # AgentChat.tsx + BriefingProgress.tsx
-│   └── api/
-│       ├── briefing/route.ts    # Direct briefing endpoint
-│       └── health/route.ts
-├── lib/                         # Input extraction (EN/HI), utils
-├── components/                  # UI primitives (ai-elements, ui/shadcn)
-├── scripts/test-pipeline.ts     # Live integration tests
-├── architecture.md              # Full system design
-├── Dockerfile                   # Multi-stage production image
-└── docker-compose.yml           # App + Ollama
+├── agent/
+│   ├── agent.ts                  #   model config (Ollama lfm2.5)
+│   ├── instructions.md           #   system prompt — thin wrapper role
+│   ├── channels/eve.ts           #   eve channel wiring
+│   ├── lib/                      #   ★ the intelligence pipeline
+│   │   ├── run-briefing.ts       #     central orchestrator
+│   │   ├── geocode.ts            #     Nominatim + coastal heuristic
+│   │   ├── weather-metrics.ts    #     Open-Meteo (+ marine)
+│   │   ├── web-intelligence.ts   #     DuckDuckGo + page enrichment
+│   │   ├── roads-overpass.ts     #     OSM Overpass
+│   │   ├── gov-alerts.ts         #     IMD / NDMA / INCOIS
+│   │   ├── disaster-news.ts      #     Google News RSS
+│   │   ├── navic-context.ts      #     ISRO / Bhuvan / INCOIS
+│   │   ├── full-report.ts        #     10-section report + risk scoring
+│   │   └── fetch-utils.ts        #     HTTP helpers + HTML strip
+│   └── tools/
+│       └── area_situation_report.ts
+├── app/
+│   ├── chat/                     #   AgentChat + 6-step BriefingProgress
+│   ├── api/briefing/route.ts     #   direct briefing endpoint
+│   ├── api/health/route.ts
+│   ├── _components/agent-message.tsx
+│   ├── layout.tsx · page.tsx · globals.css
+├── components/
+│   ├── ai-elements/              #   message, tool, chain-of-thought, prompt-input
+│   └── ui/                       #   shadcn-ui primitives
+├── lib/
+│   ├── location-query.ts         #   polyglot input extraction (EN / HI)
+│   ├── hitl-ui.ts                #   human-in-the-loop UI helpers
+│   └── utils.ts
+├── scripts/
+│   └── test-pipeline.ts          #   live pipeline test (network required)
+├── vids/                         #   demo recordings (3 runs)
+├── architecture.md               #   system design & API contract
+├── docker-compose.yml · Dockerfile
+├── SECURITY.md · CHANGELOG.md · CONTRIBUTING.md · LICENSE
+├── start.sh
+└── package.json
 ```
 
----
+## Links
 
-## Testing
-
-`test:pipeline` runs end-to-end checks for `Kolar Bhopal MP` and `Chennai Marina`,
-validating geocoding, ≥20 weather metrics, roads, web intel, report length, and
-required report sections.
-
-CI runs `typecheck` + `build` on every push/PR. A nightly workflow runs the live
-pipeline test and can be triggered manually from the **Actions** tab.
-
----
-
-## Roadmap
-
-- [ ] Persistent briefing history + region watchlists
-- [ ] River / reservoir stage data (CWC) for flood-prone districts
-- [ ] Multi-language report export (PDF / WhatsApp)
-- [ ] SMS / Telegram alert subscriptions per district
-- [ ] Offline-first build with local vector map tiles
-
----
+- [System design & architecture](architecture.md)
+- [eve documentation](https://eve.dev/docs)
+- [browser & weather sources](https://open-meteo.com) — Open-Meteo, Nominatim, OSM Overpass
+- [Ollama](https://ollama.com)
 
 ## License
 
